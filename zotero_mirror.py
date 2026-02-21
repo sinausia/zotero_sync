@@ -3,9 +3,9 @@ import os
 import pathlib
 import shutil
 
-# --- CONFIGURE THESE ---
-ZOTERO_DATA_DIR = pathlib.Path.home() / "Zotero"
-MIRROR_DIR = pathlib.Path.home() / "ZoteroMirror"  # where the organized folders go
+# --- CONFIGURATION ---
+ZOTERO_DATA_DIR = pathlib.Path("/Users/danielsinausia/Documents/Zotero")
+MIRROR_DIR = pathlib.Path("/Users/danielsinausia/Documents/Zotero/ZoteroMirror")
 USE_SYMLINKS = False  # False = copy files instead, True = uses symlinks not to double the pdf, but doesn't work well with iCloud
 # -----------------------
 
