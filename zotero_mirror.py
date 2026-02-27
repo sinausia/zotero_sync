@@ -12,6 +12,7 @@ USE_SYMLINKS = False  # False = copy files instead, True = uses symlinks not to 
 DB_PATH = ZOTERO_DATA_DIR / "zotero.sqlite"
 STORAGE_DIR = ZOTERO_DATA_DIR / "storage"
 
+
 def get_collections(cursor):
     cursor.execute("""
         SELECT collectionID, collectionName, parentCollectionID
@@ -20,12 +21,14 @@ def get_collections(cursor):
     """)
     return {row[0]: {"name": row[1], "parent": row[2]} for row in cursor.fetchall()}
 
+
 def build_path(col_id, collections):
     col = collections[col_id]
     name = col["name"]
     if col["parent"]:
         return build_path(col["parent"], collections) / name
     return pathlib.Path(name)
+
 
 def get_items_in_collections(cursor):
     cursor.execute("""
@@ -40,6 +43,7 @@ def get_items_in_collections(cursor):
     """)
     return cursor.fetchall()
 
+
 def get_attachments(cursor, item_id):
     cursor.execute("""
         SELECT ia.path, i.key
@@ -49,16 +53,17 @@ def get_attachments(cursor, item_id):
     """, (item_id,))
     return cursor.fetchall()
 
+
 def sanitize(name):
     if not name:
         return "Untitled"
     return "".join(c if c not in r'\/:*?"<>|' else "_" for c in name).strip()[:80]
 
+
 def main():
-    # Zotero must be closed for safe SQLite access, or use a copy
-    import shutil as sh
+    # Copy DB to avoid conflicts with a running Zotero instance
     tmp_db = pathlib.Path("/tmp/zotero_mirror.sqlite")
-    sh.copy2(DB_PATH, tmp_db)
+    shutil.copy2(DB_PATH, tmp_db)
 
     conn = sqlite3.connect(tmp_db)
     cursor = conn.cursor()
@@ -66,6 +71,9 @@ def main():
     collections = get_collections(cursor)
     items = get_items_in_collections(cursor)
 
+    # Wipe and recreate the mirror directory
+    if MIRROR_DIR.exists():
+        shutil.rmtree(MIRROR_DIR)
     MIRROR_DIR.mkdir(parents=True, exist_ok=True)
 
     linked = 0
@@ -76,7 +84,6 @@ def main():
 
         attachments = get_attachments(cursor, item_id)
         for path, key in attachments:
-            # Zotero stores paths as "storage:filename.pdf" or absolute paths
             if path and path.startswith("storage:"):
                 filename = path[len("storage:"):]
                 src = STORAGE_DIR / key / filename
@@ -89,6 +96,7 @@ def main():
                 continue
 
             dest = dest_dir / f"{sanitize(title)}.pdf"
+
             # Handle duplicates
             counter = 1
             while dest.exists() and dest.resolve() != src.resolve():
@@ -106,6 +114,7 @@ def main():
 
     conn.close()
     print(f"Done. {linked} PDFs {'linked' if USE_SYMLINKS else 'copied'}.")
+
 
 if __name__ == "__main__":
     main()
